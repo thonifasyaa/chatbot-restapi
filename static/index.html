@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#a91524">
+  <title>Telkom University | Asisten Akademik</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="chat-page">
+  <nav class="topbar">
+    <a class="brand" href="/" aria-label="Telkom University beranda">
+      <span class="brand-mark"><img src="/static/logo-si-telkom-surabaya.jpg" alt=""></span>
+      <span class="brand-name">TELKOM UNIVERSITY<small>SURABAYA · ASISTEN AKADEMIK</small></span>
+    </a>
+    <a class="admin-link" href="/admin"><span class="admin-dot"></span> Admin</a>
+  </nav>
+
+  <main class="chat-layout">
+    <section class="intro">
+      <span class="eyebrow"><span class="live-dot"></span> KNOWLEDGE ASSISTANT</span>
+      <h1>Informasi kampus,<br><span>lebih mudah dicari.</span></h1>
+      <p class="intro-copy">Temukan panduan layanan SSC dan informasi Transkrip Aktivitas Kemahasiswaan dari dokumen resmi kampus.</p>
+      <div class="intro-note"><span class="note-icon">i</span><span>Jawaban merujuk pada dokumen yang tersedia untuk role Anda.</span></div>
+      <div class="campus-stamp"><span class="stamp-line"></span><span>Knowledge for a better future</span></div>
+    </section>
+
+    <section class="chat-card" aria-label="Chatbot akademik">
+      <div class="chat-card-head">
+        <div class="assistant-avatar">T</div>
+        <div><h2>Asisten Akademik</h2><p><span class="live-dot"></span> Siap membantu</p></div>
+        <span class="secure-label">RAG · RBAC</span>
+      </div>
+      <div class="role-row"><label for="role">AKSES SEBAGAI</label><select id="role" aria-label="Pilih role"></select></div>
+      <div id="messages" class="messages" aria-live="polite">
+        <div class="welcome-message"><span class="welcome-spark">✳</span><h3>Selamat datang!</h3><p>Tulis pertanyaan tentang layanan kampus atau aturan TAK. Saya akan mencari jawabannya dari dokumen yang relevan.</p><div class="suggestion-label">COBA TANYAKAN</div><button class="suggestion" type="button" data-question="Bagaimana cara menghubungi SSC?">Bagaimana cara menghubungi SSC? <span>↗</span></button><button class="suggestion" type="button" data-question="Berapa nilai TAK minimal untuk jenjang S1?">Berapa nilai TAK minimal untuk jenjang S1? <span>↗</span></button></div>
+      </div>
+      <form id="chat" class="chat-form">
+        <textarea id="question" rows="2" maxlength="2000" placeholder="Tulis pertanyaan Anda di sini..." required></textarea>
+        <div class="composer-bottom"><span>Jawaban dapat merujuk pada beberapa sumber.</span><button aria-label="Kirim pertanyaan">Kirim <span>↑</span></button></div>
+      </form>
+      <p class="privacy-note"><span>◆</span> Dokumen ditampilkan sesuai hak akses role Anda.</p>
+    </section>
+  </main>
+  <footer class="page-footer"><span>© Telkom University · Asisten Informasi Akademik</span><span>Powered by RAG</span></footer>
+
+<script>
+const role=document.querySelector('#role'), messages=document.querySelector('#messages'), form=document.querySelector('#chat'), input=document.querySelector('#question');
+fetch('/api/roles').then(r=>r.json()).then(rs=>{role.innerHTML=rs.map(x=>`<option value="${x.name}">${x.name}</option>`).join('')}).catch(()=>{role.innerHTML='<option value="mahasiswa">mahasiswa</option>'});
+document.querySelectorAll('.suggestion').forEach(button=>button.addEventListener('click',()=>{input.value=button.dataset.question;input.focus()}));
+form.addEventListener('submit',async e=>{e.preventDefault();const q=input.value.trim();if(!q)return;document.querySelector('.welcome-message')?.remove();messages.innerHTML+=`<div class="bubble user">${esc(q)}</div><div class="bubble bot loading" id="pending"><span class="typing"><i></i><i></i><i></i></span> Sedang mencari di dokumen...</div>`;input.value='';messages.scrollTop=messages.scrollHeight;try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,role:role.value})});const raw=await r.text();let d;try{d=JSON.parse(raw)}catch{d={detail:'Server mengembalikan error. Periksa terminal server.'}}const p=document.querySelector('#pending');if(!r.ok)throw Error(d.detail||'Permintaan gagal');p.innerHTML=`${esc(d.answer)}${d.sources.length?'<div class="sources"><b>Sumber referensi</b>'+d.sources.map(s=>`<div class="source-item"><span>▤</span><div><a target="_blank" rel="noopener" href="/api/documents/${s.document_id}/download?role=${encodeURIComponent(role.value)}">${esc(s.filename)}</a><small>${esc(s.excerpt)}</small></div></div>`).join('')+'</div>':''}`;p.classList.remove('loading');p.removeAttribute('id')}catch(err){const p=document.querySelector('#pending');p.textContent=err.message;p.classList.remove('loading');p.removeAttribute('id')}messages.scrollTop=messages.scrollHeight});
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+</script>
+</body>
+</html>

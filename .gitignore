@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite
+*.sqlite3
+tmp/
+bukti_laprak/
+uploads/*
+!uploads/.gitkeep

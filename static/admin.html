@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#a91524">
+  <title>Admin | Telkom University</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="admin-page">
+  <nav class="topbar admin-topbar">
+    <a class="brand" href="/" aria-label="Telkom University beranda"><span class="brand-mark"><img src="/static/logo-si-telkom-surabaya.jpg" alt=""></span><span class="brand-name">TELKOM UNIVERSITY<small>SURABAYA · KNOWLEDGE CONSOLE</small></span></a>
+    <a class="admin-link" href="/"><span>←</span> Ke chatbot</a>
+  </nav>
+  <main class="admin-wrap">
+    <header class="admin-hero"><div><span class="eyebrow">RUANG KERJA ADMIN</span><h1>Kelola pengetahuan kampus.</h1><p>Atur koleksi dokumen, hak akses role, dan penggunaan Groq.</p></div><button id="logout" class="secondary hidden">Keluar <span>↗</span></button></header>
+    <section id="login" class="panel login-panel">
+      <div class="login-art"><span class="login-orbit orbit-one"></span><span class="login-orbit orbit-two"></span><img class="campus-logo-panel" src="/static/logo-si-telkom-surabaya.jpg" alt="Logo Telkom University Surabaya"><span class="login-art-caption">ADMIN CONSOLE<br>KNOWLEDGE MANAGEMENT</span></div>
+      <div class="login-content"><span class="eyebrow">SELAMAT DATANG KEMBALI</span><h2>Masuk ke panel admin</h2><p>Gunakan akun administrator untuk mengelola dokumen dan role.</p>
+        <form id="loginform" class="login-form"><label>Username<input name="username" placeholder="Username admin" autocomplete="username" required></label><label>Password<input name="password" type="password" placeholder="Masukkan password" autocomplete="current-password" required></label><button>Masuk ke dashboard <span>→</span></button></form>
+        <div class="login-foot"><span class="lock-icon">◆</span> Akses khusus administrator</div>
+      </div>
+    </section>
+
+    <div id="dashboard" class="hidden admin-dashboard">
+      <section class="panel admin-section"><div class="section-heading"><div class="section-icon red-icon">▤</div><div><h2>Koleksi dokumen</h2><p>Unggah sumber pengetahuan dan tentukan role yang dapat mengaksesnya.</p></div></div>
+        <form id="upload" class="upload-form"><label class="file-picker"><span class="upload-symbol">↑</span><span><b>Pilih dokumen untuk diunggah</b><small>PDF, DOCX, XLSX, CSV, TXT, atau MD</small></span><input name="file" type="file" accept=".pdf,.docx,.xlsx,.csv,.txt,.md" required></label><div class="role-select-block"><span class="field-label">ROLE YANG DAPAT MENGAKSES</span><div id="rolechecks" class="role-checks"></div></div><button class="primary-button">Unggah dan indeks <span>↗</span></button></form>
+        <div id="docs" class="doc-list"></div>
+      </section>
+      <div class="admin-columns">
+        <section class="panel admin-section"><div class="section-heading"><div class="section-icon rose-icon">◎</div><div><h2>Manajemen role</h2><p>Tambah role untuk mengatur akses informasi.</p></div></div><form id="newrole" class="inline-form"><input name="name" placeholder="Contoh: tendik" required><button class="primary-button">Tambah role <span>+</span></button></form><div id="roles" class="role-list"></div></section>
+        <section class="panel admin-section"><div class="section-heading"><div class="section-icon dark-icon">◌</div><div><h2>Penggunaan Groq</h2><p>Ringkasan aktivitas model bahasa.</p></div></div><div id="quota" class="quota-summary"></div></section>
+      </div>
+    </div>
+  </main>
+  <footer class="page-footer"><span>© Telkom University · Knowledge Console</span><span>RAG · RBAC</span></footer>
+  <div id="notice" role="status"></div>
+<script>
+const login=document.querySelector('#login'),dash=document.querySelector('#dashboard'),notice=document.querySelector('#notice');const api=async(url,opt={})=>{let r=await fetch(url,opt),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||'Permintaan gagal');return d};const msg=e=>{notice.textContent=e.message;notice.classList.add('visible');setTimeout(()=>notice.classList.remove('visible'),4200)};
+async function init(){try{await api('/api/admin/me');login.classList.add('hidden');dash.classList.remove('hidden');document.querySelector('#logout').classList.remove('hidden');await refresh()}catch{}}
+document.querySelector('#loginform').onsubmit=async e=>{e.preventDefault();try{let f=new FormData(e.target);await api('/api/auth/login',{method:'POST',body:f});await init()}catch(err){msg(err)}};
+document.querySelector('#logout').onclick=async()=>{await api('/api/auth/logout',{method:'POST'});location.reload()};
+async function refresh(){let [roles,docs,q]=await Promise.all([api('/api/roles'),api('/api/admin/documents'),api('/api/admin/groq-quota')]);document.querySelector('#rolechecks').innerHTML=roles.map(r=>`<label class="role-check"><input type="checkbox" name="role_ids" value="${r.id}" checked><span>${r.name}</span></label>`).join('');document.querySelector('#roles').innerHTML=roles.map(r=>`<span class="role-pill">${r.name} ${['mahasiswa','dosen'].includes(r.name)?'<span class="role-default">bawaan</span>':`<button aria-label="Hapus role ${r.name}" onclick="delRole(${r.id})">×</button>`}</span>`).join('');document.querySelector('#docs').innerHTML=docs.map(d=>`<article class="doc-row"><div class="doc-type">${esc(d.filename.split('.').pop().toUpperCase())}</div><div class="doc-info"><b>${esc(d.filename)}</b><small>${d.chunks} chunks <span>·</span> ${(d.roles||[]).map(esc).join(', ')||'tanpa role'}</small></div><span class="status ${d.active?'status-on':'status-off'}">${d.active?'Aktif':'Nonaktif'}</span><div class="actions"><button class="icon-button" title="Lihat chunks" onclick="showChunks(${d.id})">▤</button><button class="text-button" onclick="editRoles(${d.id})">Role</button><button class="text-button" onclick="toggleDoc(${d.id},${!d.active})">${d.active?'Nonaktifkan':'Aktifkan'}</button><button class="delete-button" onclick="deleteDoc(${d.id})" aria-label="Hapus ${esc(d.filename)}">×</button></div></article>`).join('')||'<div class="empty-state">Belum ada dokumen. Unggah dokumen pertama untuk membangun knowledge base.</div>';document.querySelector('#quota').innerHTML=`<div class="quota-model"><span class="live-dot"></span> ${esc(q.model)}</div><div class="quota-grid"><div><b>${q.requests}</b><small>request</small></div><div><b>${Number(q.prompt_tokens).toLocaleString()}</b><small>token input</small></div><div><b>${Number(q.completion_tokens).toLocaleString()}</b><small>token output</small></div></div><div class="key-status ${q.has_api_key?'key-ready':'key-missing'}"><span></span> API key ${q.has_api_key?'terdeteksi':'belum diatur'}</div>`}
+document.querySelector('#upload').onsubmit=async e=>{e.preventDefault();try{let f=new FormData(e.target);f.set('role_ids',JSON.stringify([...e.target.querySelectorAll('[name=role_ids]:checked')].map(x=>+x.value)));await api('/api/admin/documents',{method:'POST',body:f});e.target.reset();await refresh();msg({message:'Dokumen berhasil diindeks.'})}catch(err){msg(err)}};
+document.querySelector('#newrole').onsubmit=async e=>{e.preventDefault();try{await api('/api/admin/roles',{method:'POST',body:new FormData(e.target)});e.target.reset();await refresh()}catch(err){msg(err)}};
+window.delRole=async id=>{try{await api('/api/admin/roles/'+id,{method:'DELETE'});await refresh()}catch(err){msg(err)}};window.toggleDoc=async(id,active)=>{try{let f=new FormData();f.set('active',active);await api(`/api/admin/documents/${id}`,{method:'PATCH',body:f});await refresh()}catch(err){msg(err)}};window.deleteDoc=async id=>{if(!confirm('Hapus dokumen ini?'))return;try{await api(`/api/admin/documents/${id}`,{method:'DELETE'});await refresh()}catch(err){msg(err)}};window.showChunks=async id=>{try{let c=await api(`/api/admin/documents/${id}/chunks`);alert(c.map(x=>`#${x.ordinal+1} ${x.content}`).join('\n\n'))}catch(err){msg(err)}};window.editRoles=async id=>{let roles=await api('/api/roles'),chosen=prompt('Masukkan ID role dipisahkan koma:\n'+roles.map(r=>`${r.id}: ${r.name}`).join('\n'));if(!chosen)return;try{let f=new FormData();f.set('role_ids',JSON.stringify(chosen.split(',').map(x=>+x.trim())));await api(`/api/admin/documents/${id}/roles`,{method:'PUT',body:f});await refresh()}catch(err){msg(err)}};function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}init();
+</script>
+</body>
+</html>
